@@ -1,0 +1,157 @@
+# GENERATE TIME: Sun Aug 17 13:20:45 2025
+# CMD:
+# train.py -opt options/train/ours_stage1.yml
+
+# general settings
+name:  train_stage1
+model_type: PolarFree_S1
+scale: 1
+num_gpu: 1 # set num_gpu: 0 for cpu mode
+manual_seed: 100
+
+# dataset and data loader settings
+datasets:
+  train:
+    name: TrainSet
+    type: PairedImagePolarDescatteringDataset
+    dataroot_gt: polar_descattering_resize256/train
+    dataroot_lq: polar_descattering_resize256/train
+    # dataroot_gt: PolaRGB/train
+    # dataroot_lq: PolaRGB/train
+    filename_tmpl: '{}'
+    io_backend:
+      type: disk
+    test_scenes: [ ]
+
+    easy_data_ratio: 1
+    hard_data_ratio: 3
+
+    # data loader
+    use_shuffle: true
+    num_worker_per_gpu: 6
+    batch_size_per_gpu: 1
+    dataset_enlarge_ratio: 1
+    prefetch_mode: ~
+
+    gt_size: 256   
+
+    dataset_enlarge_ratio: 1
+    prefetch_mode: ~
+
+  val:
+    name: ValSet
+    type: PairedImagePolarDescatteringDataset
+    dataroot_gt: polar_descattering_resize256/val
+    dataroot_lq: polar_descattering_resize256/val
+    filename_tmpl: '{}'
+    io_backend:
+      type: disk
+    # test_scenes: ['00', '01', '02', '03', '04', '05', '06',  '07']
+    test_scenes: ['coin','coral','cube','live','motor','neu','pineapple','ruler','tea','wheel']
+
+
+
+network_g:
+  type: Transformer
+  inp_channels: 3
+  out_channels: 3
+  dim: 64
+  num_blocks: [1,2,3,4]
+  num_refinement_blocks: 2
+  heads: [1,2,4,8]
+  ffn_expansion_factor: 2.66
+  bias: False
+  LayerNorm_type: WithBias
+  dual_pixel_task: False
+  embed_dim: 64
+  group: 4 # N=4*4
+
+
+network_le:
+  type: latent_encoder_gelu
+  in_chans: 21
+  embed_dim: 64 # same as above
+  block_num: 4
+  group: 4 # same as above
+  stage: 1
+  patch_expansion: 0.5
+  channel_expansion: 4
+
+# path
+path:
+  pretrain_network_g: ~
+  param_key_g: params
+  strict_load_g: true
+
+  pretrain_network_le: ~
+  param_key_g: params
+  strict_load_le: true
+
+  resume_state: ~
+
+# training settings
+train:
+  total_iter: 100000
+  warmup_iter: -1 # no warm up
+  use_grad_clip: True
+
+  scheduler:
+    type: CosineAnnealingRestartCyclicLR
+    periods: [100000, 200000]       
+    restart_weights: [1,1]
+    eta_mins: [0.0002,0.000001]
+  
+  mixing_augs:
+    mixup: false
+    mixup_beta: 1.2
+    use_identity: true
+
+  optim_total:
+    type: AdamW
+    lr: !!float 1e-4
+    weight_decay: !!float 1e-4
+    betas: [0.9, 0.999]
+  
+  # losses
+  pixel_opt:
+    type: L1Loss
+    loss_weight: 1.0
+    reduction: mean
+
+  # tv_opt:
+  #   loss_weight: 0.0005
+
+  vgg_opt:
+    loss_weight: 0.05
+
+  color_opt:
+    loss_weight: 0.1
+    
+
+  # phase_opt:
+  #   loss_weight: 0.1
+
+# validation settings
+val:
+  val_freq: !!float 5000
+  save_img: true
+
+  metrics:
+    psnr: # metric name, can be arbitrary
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: false
+
+# logging settings
+logger:
+  print_freq: 2000
+  save_checkpoint_freq: !!float 5e3
+  use_tb_logger: false
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500

@@ -1,0 +1,27 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Log and output
+*.log
+
+
+# Model weights
+#*.pth
+*.ckpt
+*.safetensors
+
+# Dataset
+data/
+
+# IDE config
+.vscode/
+.idea/
+.DS_Store
